@@ -1,0 +1,49 @@
+# Run with:  docker compose --env-file .env.production up -d --build
+services:
+  backend:
+    build: ./backend
+    image: ai-placement-coach-backend
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PORT: "5000"
+      # Keep Node's heap small so it fits a 1 GB free-tier VM
+      NODE_OPTIONS: --max-old-space-size=256
+    mem_limit: 512m
+    expose:
+      - "5000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /api/v1
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+    image: ai-placement-coach-web
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data      # persists the HTTPS certificates
+      - caddy_config:/config
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  caddy_data:
+  caddy_config:
