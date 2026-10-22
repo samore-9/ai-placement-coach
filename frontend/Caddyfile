@@ -1,0 +1,20 @@
+# SITE_ADDRESS decides the mode (set in .env.production):
+#   :80             -> plain HTTP (testing on localhost or a bare IP)
+#   app.example.com -> Caddy gets a free HTTPS certificate automatically
+#                      (needs DNS pointing here and ports 80 + 443 open)
+{$SITE_ADDRESS::80} {
+	encode gzip
+
+	# API calls -> backend container (same origin, so no CORS/cookie headaches)
+	handle /api/* {
+		reverse_proxy backend:5000
+	}
+
+	# Everything else -> the React app; unknown paths fall back to index.html
+	# so client-side routes like /dashboard/resume work on refresh.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
